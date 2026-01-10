@@ -125,7 +125,7 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 		UserID:           user.ID,
 		AccessToken:      accessToken,
 		RefreshToken:     refreshToken,
-		AccessExpiresAt:  time.Now().Add(time.Minute),
+		AccessExpiresAt:  time.Now().Add(60 * time.Minute),
 		RefreshExpiresAt: time.Now().Add(7 * 24 * time.Hour),
 	}
 
