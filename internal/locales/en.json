@@ -1,0 +1,13 @@
+{
+    "email_exists": "Email already exists",
+    "invalid_token": "Invalid or expired token",
+    "invalid_refresh_token": "Invalid refresh token",
+    "invalid_json": "Invalid JSON body",
+    "internal_error": "Internal Server Error",
+    "unauthorized": "Unauthorized",
+    "email_required": "Email is required",
+    "invalid_credentials": "Invalid credentials",
+    "invalid_email": "Invalid email format",
+    "password_short": "Password must be at least 6 characters",
+    "user_created": "User created successfully"
+}

@@ -8,9 +8,13 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/jacobpq/soccer-manager/internal/api"
 	"github.com/jacobpq/soccer-manager/internal/config"
+	"github.com/jacobpq/soccer-manager/internal/handler"
+	"github.com/jacobpq/soccer-manager/internal/locales"
 	"github.com/jacobpq/soccer-manager/internal/middleware"
 	"github.com/jacobpq/soccer-manager/internal/repository"
+	"github.com/jacobpq/soccer-manager/internal/service"
 )
 
 func healthCheckHandler(dbPool *pgxpool.Pool) http.HandlerFunc {
@@ -50,13 +54,44 @@ func main() {
 	}
 	defer dbPool.Close()
 
+	if err := locales.Init(); err != nil {
+		log.Fatal(err)
+		log.Fatalf("Failed to init locales: %v", err)
+
+	}
+
+	userRepo := repository.NewUserRepository(dbPool)
+	teamRepo := repository.NewTeamRepository()
+	playerRepo := repository.NewPlayerRepository()
+	sessionRepo := repository.NewSessionRepository(dbPool)
+
+	//service
+	authSvc := service.NewAuthService(dbPool, userRepo, teamRepo, playerRepo, sessionRepo)
+	teamSvc := service.NewTeamService(dbPool, teamRepo, playerRepo)
+
+	//handler
+	authHandler := handler.NewAuthHandler(authSvc)
+	teamHandler := handler.NewTeamHandler(teamSvc)
+
+	//middleware
+	authMiddleware := middleware.Auth(sessionRepo)
+
 	mux := http.NewServeMux()
 
+	//util
 	mux.HandleFunc("GET /health", healthCheckHandler(dbPool))
+
+	//auth
+	mux.HandleFunc("POST /register", api.Make(authHandler.Register))
+	mux.HandleFunc("POST /login", api.Make(authHandler.Login))
+	mux.HandleFunc("POST /refresh", api.Make(authHandler.Refresh))
+
+	//team
+	mux.Handle("GET /team", authMiddleware(api.Make(teamHandler.GetMyTeam)))
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
-		Handler: middleware.Logger(mux),
+		Handler: middleware.Logger(middleware.Locale(mux)),
 	}
 
 	log.Println("Server starting on port " + cfg.Port)

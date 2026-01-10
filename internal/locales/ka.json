@@ -1,0 +1,13 @@
+{
+    "email_exists": "ელფოსტა უკვე გამოყენებულია",
+    "invalid_token": "არასწორი ან ვადაგასული ტოკენი",
+    "invalid_refresh_token": "არასწორი ან ვადაგასული refresh ტოკენი",
+    "invalid_json": "არასწორი JSON ფორმატი",
+    "internal_error": "სერვერის შეცდომა",
+    "unauthorized": "არაავტორიზებული",
+    "email_required": "ელფოსტა სავალდებულოა",
+    "invalid_credentials": "ელფოსტა ან პაროლი არასწორია",
+    "invalid_email": "ელფოსტის ფორმატი არასწორია",
+    "password_short": "პაროლი უნდა შედგებოდეს მინიმუმ 6 სიმბოლოსგან",
+    "user_created": "მომხმარებელი წარმატებით შეიქმნა"
+}

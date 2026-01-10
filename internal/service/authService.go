@@ -1,0 +1,153 @@
+package service
+
+import (
+	"context"
+	"encoding/hex"
+	"fmt"
+	"math/rand"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/jacobpq/soccer-manager/internal/api"
+	"github.com/jacobpq/soccer-manager/internal/domain/models"
+	"github.com/jacobpq/soccer-manager/internal/locales"
+	"github.com/jacobpq/soccer-manager/internal/repository"
+)
+
+type AuthService struct {
+	db          *pgxpool.Pool
+	userRepo    *repository.UserRepository
+	teamRepo    *repository.TeamRepository
+	playerRepo  *repository.PlayerRepository
+	sessionRepo *repository.SessionRepository
+}
+
+func NewAuthService(db *pgxpool.Pool, u *repository.UserRepository, t *repository.TeamRepository, p *repository.PlayerRepository, s *repository.SessionRepository) *AuthService {
+	return &AuthService{
+		db:          db,
+		userRepo:    u,
+		teamRepo:    t,
+		playerRepo:  p,
+		sessionRepo: s,
+	}
+}
+
+func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) error {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	user := &models.User{Email: req.Email, Password: string(hashed)}
+	if err := s.userRepo.Create(ctx, tx, user); err != nil {
+		return fmt.Errorf("failed to create user: %w", err)
+	}
+
+	team := &models.Team{
+		UserID:  user.ID,
+		Name:    req.TeamName,
+		Country: req.Country,
+		Budget:  5000000,
+	}
+	if err := s.teamRepo.Create(ctx, tx, team); err != nil {
+		return fmt.Errorf("failed to create team: %w", err)
+	}
+
+	players := s.generateInitialSquad(team.ID)
+	if err := s.playerRepo.CreateBatch(ctx, tx, players); err != nil {
+		return fmt.Errorf("failed to generate players: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func (s *AuthService) generateInitialSquad(teamID int) []*models.Player {
+	var players []*models.Player
+
+	positions := []string{"GK", "GK", "GK"}
+	for i := 0; i < 6; i++ {
+		positions = append(positions, "DF")
+	}
+	for i := 0; i < 6; i++ {
+		positions = append(positions, "MF")
+	}
+	for i := 0; i < 5; i++ {
+		positions = append(positions, "AT")
+	}
+
+	for _, pos := range positions {
+		randFirstName := repository.FirstNames[rand.Intn(len(repository.FirstNames))]
+		randLastName := repository.LastNames[rand.Intn(len(repository.LastNames))]
+		randCountry := repository.Countries[rand.Intn(len(repository.LastNames))]
+
+		players = append(players, &models.Player{
+			TeamID:    teamID,
+			FirstName: randFirstName,
+			LastName:  randLastName,
+			Country:   randCountry,
+			Age:       rand.Intn(23) + 18,
+			Position:  pos,
+			Value:     1000000,
+		})
+	}
+	return players
+}
+
+func generateToken() string {
+	b := make([]byte, 32)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*models.Session, error) {
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, api.ErrNotFound(locales.T(ctx, "invalid_credentials"))
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		return nil, api.ErrNotFound(locales.T(ctx, "invalid_credentials"))
+	}
+
+	accessToken := generateToken()
+	refreshToken := generateToken()
+
+	session := &models.Session{
+		UserID:           user.ID,
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		AccessExpiresAt:  time.Now().Add(time.Minute),
+		RefreshExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	if err := s.sessionRepo.Create(ctx, session); err != nil {
+		return nil, err
+	}
+
+	return session, nil
+}
+
+func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+	session, err := s.sessionRepo.GetByRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return "", api.ErrNotFound(locales.T(ctx, "invalid_token"))
+	}
+
+	newAccessToken := generateToken()
+	newExpiry := time.Now().Add(15 * time.Minute)
+
+	if err := s.sessionRepo.RotateAccessToken(ctx, session.ID, newAccessToken, newExpiry); err != nil {
+		return "", err
+	}
+
+	return newAccessToken, nil
+}
