@@ -33,7 +33,7 @@ func (r *PlayerRepository) CreateBatch(ctx context.Context, tx pgx.Tx, players [
 
 func (r *PlayerRepository) GetByTeamID(ctx context.Context, db *pgxpool.Pool, teamID int) ([]*models.Player, error) {
 	query := `
-		SELECT id, team_id, first_name, last_name, country, age, position, value, market_value 
+		SELECT id, team_id, first_name, last_name, country, age, position, value, market_value, on_transfer_list 
 		FROM players WHERE team_id = $1`
 
 	rows, err := db.Query(ctx, query, teamID)
@@ -42,12 +42,16 @@ func (r *PlayerRepository) GetByTeamID(ctx context.Context, db *pgxpool.Pool, te
 	}
 	defer rows.Close()
 
-	var players []*models.Player
+	players := make([]*models.Player, 0)
+
 	for rows.Next() {
 		var p models.Player
 		var marketValue *float64
 
-		err := rows.Scan(&p.ID, &p.TeamID, &p.FirstName, &p.LastName, &p.Country, &p.Age, &p.Position, &p.Value, &marketValue)
+		err := rows.Scan(
+			&p.ID, &p.TeamID, &p.FirstName, &p.LastName, &p.Country,
+			&p.Age, &p.Position, &p.Value, &marketValue, &p.OnTransferList,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -67,8 +71,8 @@ func (r *PlayerRepository) UpdateMarketStatus(ctx context.Context, db *pgxpool.P
 
 func (r *PlayerRepository) GetMarketPlayers(ctx context.Context, db *pgxpool.Pool) ([]*models.Player, error) {
 	query := `
-        SELECT id, team_id, first_name, last_name, country, age, position, value, market_value 
-        FROM players WHERE on_transfer_list = true`
+		SELECT id, team_id, first_name, last_name, country, age, position, value, market_value 
+		FROM players WHERE on_transfer_list = true`
 
 	rows, err := db.Query(ctx, query)
 	if err != nil {
@@ -76,7 +80,8 @@ func (r *PlayerRepository) GetMarketPlayers(ctx context.Context, db *pgxpool.Poo
 	}
 	defer rows.Close()
 
-	var players []*models.Player
+	players := make([]*models.Player, 0)
+
 	for rows.Next() {
 		var p models.Player
 		err := rows.Scan(&p.ID, &p.TeamID, &p.FirstName, &p.LastName, &p.Country, &p.Age, &p.Position, &p.Value, &p.MarketPrice)
@@ -105,5 +110,11 @@ func (r *PlayerRepository) TransferOwnership(ctx context.Context, tx pgx.Tx, pla
         SET team_id = $1, value = $2, on_transfer_list = false, market_value = 0 
         WHERE id = $3`
 	_, err := tx.Exec(ctx, query, newTeamID, newValue, playerID)
+	return err
+}
+
+func (r *PlayerRepository) UpdateDetails(ctx context.Context, db *pgxpool.Pool, playerID int, first, last, country string) error {
+	query := `UPDATE players SET first_name = $1, last_name = $2, country = $3 WHERE id = $4`
+	_, err := db.Exec(ctx, query, first, last, country, playerID)
 	return err
 }

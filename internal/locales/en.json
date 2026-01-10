@@ -20,5 +20,7 @@
     "transfer_success": "Transfer successful",
     "do_not_own_player": "You do not own this player",
     "player_not_for_sale": "Player is not for sale",
-    "player_removed_from_list": "Player removed from list successfully"
+    "player_removed_from_list": "Player removed from list successfully",
+    "team_updated": "Team updated successfully",
+    "player_updated": "Player updated successfully"
 }

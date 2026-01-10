@@ -20,5 +20,7 @@
     "transfer_success": "ტრანსფერი წარმატებით დასრულდა",
     "do_not_own_player": "თქვენ არ ფლობთ ამ მოთამაშეს",
     "player_not_for_sale": "მოთამაშე არ იყიდება",
-    "player_removed_from_list": "მოთამაშე წარმატებით წაიშალა სიიდან"
+    "player_removed_from_list": "მოთამაშე წარმატებით წაიშალა სიიდან",
+    "team_updated": "გუნდი წარმატებით განახლდა",
+    "player_updated": "მოთამაშე წარმატებით განახლდა"
 }

@@ -5,7 +5,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/jacobpq/soccer-manager/internal/api"
 	"github.com/jacobpq/soccer-manager/internal/domain/models"
+	"github.com/jacobpq/soccer-manager/internal/locales"
 	"github.com/jacobpq/soccer-manager/internal/repository"
 )
 
@@ -45,4 +47,50 @@ func (s *TeamService) GetMyTeam(ctx context.Context, userID int) (*TeamResponse,
 		Team:    team,
 		Players: players,
 	}, nil
+}
+
+func (s *TeamService) UpdateTeam(ctx context.Context, userID int, name, country *string) error {
+	team, err := s.teamRepo.GetByUserID(ctx, s.db, userID)
+	if err != nil {
+		return err
+	}
+
+	if name != nil {
+		team.Name = *name
+	}
+	if country != nil {
+		team.Country = *country
+	}
+
+	return s.teamRepo.UpdateDetails(ctx, s.db, team.ID, team.Name, team.Country)
+}
+
+func (s *TeamService) UpdatePlayer(ctx context.Context, userID, playerID int, first, last, country *string) error {
+	player, err := s.playerRepo.GetByID(ctx, s.db, playerID)
+	if err != nil {
+		return api.ErrNotFound(locales.T(ctx, "player_not_found"))
+	}
+
+	team, err := s.teamRepo.GetByUserID(ctx, s.db, userID)
+	if err != nil {
+		return api.ErrNotFound(locales.T(ctx, "team_not_found"))
+
+	}
+
+	if player.TeamID != team.ID {
+		return api.ErrNotFound(locales.T(ctx, "do_not_own_player"))
+
+	}
+
+	if first != nil {
+		player.FirstName = *first
+	}
+	if last != nil {
+		player.LastName = *last
+	}
+	if country != nil {
+		player.Country = *country
+	}
+
+	return s.playerRepo.UpdateDetails(ctx, s.db, playerID, player.FirstName, player.LastName, player.Country)
 }

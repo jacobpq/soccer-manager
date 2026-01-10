@@ -94,6 +94,8 @@ func main() {
 	mux.Handle("POST /transfer/remove", authMiddleware(api.Make(transferHandler.RemovePlayer)))
 	mux.Handle("GET /transfer/market", authMiddleware(api.Make(transferHandler.GetMarket)))
 	mux.Handle("POST /transfer/buy", authMiddleware(api.Make(transferHandler.BuyPlayer)))
+	mux.Handle("PUT /team", authMiddleware(api.Make(teamHandler.UpdateTeam)))
+	mux.Handle("PUT /player", authMiddleware(api.Make(teamHandler.UpdatePlayer)))
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

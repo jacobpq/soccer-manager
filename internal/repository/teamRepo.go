@@ -40,3 +40,9 @@ func (r *TeamRepository) UpdateBudget(ctx context.Context, tx pgx.Tx, teamID int
 	_, err := tx.Exec(ctx, query, amount, teamID)
 	return err
 }
+
+func (r *TeamRepository) UpdateDetails(ctx context.Context, db *pgxpool.Pool, teamID int, name, country string) error {
+	query := `UPDATE teams SET name = $1, country = $2 WHERE id = $3`
+	_, err := db.Exec(ctx, query, name, country, teamID)
+	return err
+}
