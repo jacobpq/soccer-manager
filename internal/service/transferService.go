@@ -13,17 +13,24 @@ import (
 	"github.com/jacobpq/soccer-manager/internal/repository"
 )
 
-type TransferService struct {
+type TransferService interface {
+	BuyPlayer(ctx context.Context, userID, playerID int) error
+	ListPlayer(ctx context.Context, userID, playerID int, price float64) error
+	GetMarket(ctx context.Context) ([]*models.Player, error)
+	RemoveFromList(ctx context.Context, userID, playerID int) error
+}
+
+type transferService struct {
 	db         *pgxpool.Pool
 	playerRepo *repository.PlayerRepository
 	teamRepo   *repository.TeamRepository
 }
 
-func NewTransferService(db *pgxpool.Pool, p *repository.PlayerRepository, t *repository.TeamRepository) *TransferService {
-	return &TransferService{db: db, playerRepo: p, teamRepo: t}
+func NewTransferService(db *pgxpool.Pool, p *repository.PlayerRepository, t *repository.TeamRepository) TransferService {
+	return &transferService{db: db, playerRepo: p, teamRepo: t}
 }
 
-func (s *TransferService) ListPlayer(ctx context.Context, userID, playerID int, price float64) error {
+func (s *transferService) ListPlayer(ctx context.Context, userID, playerID int, price float64) error {
 	player, err := s.playerRepo.GetByID(ctx, s.db, playerID)
 	if err != nil {
 		return api.ErrNotFound(locales.T(ctx, "player_not_found"))
@@ -41,7 +48,7 @@ func (s *TransferService) ListPlayer(ctx context.Context, userID, playerID int, 
 	return s.playerRepo.UpdateMarketStatus(ctx, s.db, playerID, price, true)
 }
 
-func (s *TransferService) RemoveFromList(ctx context.Context, userID, playerID int) error {
+func (s *transferService) RemoveFromList(ctx context.Context, userID, playerID int) error {
 	player, err := s.playerRepo.GetByID(ctx, s.db, playerID)
 	if err != nil {
 		return api.ErrNotFound(locales.T(ctx, "player_not_found"))
@@ -64,11 +71,11 @@ func (s *TransferService) RemoveFromList(ctx context.Context, userID, playerID i
 	return s.playerRepo.UpdateMarketStatus(ctx, s.db, playerID, 0, false)
 }
 
-func (s *TransferService) GetMarket(ctx context.Context) ([]*models.Player, error) {
+func (s *transferService) GetMarket(ctx context.Context) ([]*models.Player, error) {
 	return s.playerRepo.GetMarketPlayers(ctx, s.db)
 }
 
-func (s *TransferService) BuyPlayer(ctx context.Context, buyerUserID, playerID int) error {
+func (s *transferService) BuyPlayer(ctx context.Context, buyerUserID, playerID int) error {
 	buyerTeam, err := s.teamRepo.GetByUserID(ctx, s.db, buyerUserID)
 	if err != nil {
 		return api.ErrNotFound(locales.T(ctx, "buyer_team_not_found"))

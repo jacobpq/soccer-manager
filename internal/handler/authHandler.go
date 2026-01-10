@@ -13,14 +13,14 @@ import (
 )
 
 type AuthHandler struct {
-	svc *service.AuthService
+	svc service.AuthService
 }
 
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }
 
-func NewAuthHandler(svc *service.AuthService) *AuthHandler {
+func NewAuthHandler(svc service.AuthService) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 

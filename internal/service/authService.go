@@ -16,7 +16,13 @@ import (
 	"github.com/jacobpq/soccer-manager/internal/repository"
 )
 
-type AuthService struct {
+type AuthService interface {
+	Register(ctx context.Context, req models.RegisterRequest) error
+	Login(ctx context.Context, req models.LoginRequest) (*models.Session, error)
+	RefreshToken(ctx context.Context, refreshToken string) (string, error)
+}
+
+type authService struct {
 	db          *pgxpool.Pool
 	userRepo    *repository.UserRepository
 	teamRepo    *repository.TeamRepository
@@ -24,8 +30,8 @@ type AuthService struct {
 	sessionRepo *repository.SessionRepository
 }
 
-func NewAuthService(db *pgxpool.Pool, u *repository.UserRepository, t *repository.TeamRepository, p *repository.PlayerRepository, s *repository.SessionRepository) *AuthService {
-	return &AuthService{
+func NewAuthService(db *pgxpool.Pool, u *repository.UserRepository, t *repository.TeamRepository, p *repository.PlayerRepository, s *repository.SessionRepository) AuthService {
+	return &authService{
 		db:          db,
 		userRepo:    u,
 		teamRepo:    t,
@@ -34,7 +40,7 @@ func NewAuthService(db *pgxpool.Pool, u *repository.UserRepository, t *repositor
 	}
 }
 
-func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) error {
+func (s *authService) Register(ctx context.Context, req models.RegisterRequest) error {
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -69,7 +75,7 @@ func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) 
 	return tx.Commit(ctx)
 }
 
-func (s *AuthService) generateInitialSquad(teamID int) []*models.Player {
+func (s *authService) generateInitialSquad(teamID int) []*models.Player {
 	var players []*models.Player
 
 	positions := []string{"GK", "GK", "GK"}
@@ -107,7 +113,7 @@ func generateToken() string {
 	return hex.EncodeToString(b)
 }
 
-func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*models.Session, error) {
+func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*models.Session, error) {
 	user, err := s.userRepo.GetByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, api.ErrNotFound(locales.T(ctx, "invalid_credentials"))
@@ -136,7 +142,7 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 	return session, nil
 }
 
-func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
 	session, err := s.sessionRepo.GetByRefreshToken(ctx, refreshToken)
 	if err != nil {
 		return "", api.ErrNotFound(locales.T(ctx, "invalid_token"))

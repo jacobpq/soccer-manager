@@ -11,7 +11,7 @@ import (
 )
 
 type TeamHandler struct {
-	svc *service.TeamService
+	svc service.TeamService
 }
 
 type UpdateTeamRequest struct {
@@ -26,7 +26,7 @@ type UpdatePlayerRequest struct {
 	Country   *string `json:"country"`
 }
 
-func NewTeamHandler(svc *service.TeamService) *TeamHandler {
+func NewTeamHandler(svc service.TeamService) *TeamHandler {
 	return &TeamHandler{svc: svc}
 }
 

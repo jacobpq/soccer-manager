@@ -11,10 +11,10 @@ import (
 )
 
 type TransferHandler struct {
-	svc *service.TransferService
+	svc service.TransferService
 }
 
-func NewTransferHandler(svc *service.TransferService) *TransferHandler {
+func NewTransferHandler(svc service.TransferService) *TransferHandler {
 	return &TransferHandler{svc: svc}
 }
 

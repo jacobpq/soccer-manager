@@ -11,14 +11,20 @@ import (
 	"github.com/jacobpq/soccer-manager/internal/repository"
 )
 
-type TeamService struct {
+type TeamService interface {
+	GetMyTeam(ctx context.Context, userID int) (*TeamResponse, error)
+	UpdateTeam(ctx context.Context, userID int, name, country *string) error
+	UpdatePlayer(ctx context.Context, userID, playerID int, first, last, country *string) error
+}
+
+type teamService struct {
 	db         *pgxpool.Pool
 	teamRepo   *repository.TeamRepository
 	playerRepo *repository.PlayerRepository
 }
 
-func NewTeamService(db *pgxpool.Pool, t *repository.TeamRepository, p *repository.PlayerRepository) *TeamService {
-	return &TeamService{db: db, teamRepo: t, playerRepo: p}
+func NewTeamService(db *pgxpool.Pool, t *repository.TeamRepository, p *repository.PlayerRepository) TeamService {
+	return &teamService{db: db, teamRepo: t, playerRepo: p}
 }
 
 type TeamResponse struct {
@@ -26,7 +32,7 @@ type TeamResponse struct {
 	Players []*models.Player `json:"players"`
 }
 
-func (s *TeamService) GetMyTeam(ctx context.Context, userID int) (*TeamResponse, error) {
+func (s *teamService) GetMyTeam(ctx context.Context, userID int) (*TeamResponse, error) {
 	team, err := s.teamRepo.GetByUserID(ctx, s.db, userID)
 	if err != nil {
 		return nil, err
@@ -49,7 +55,7 @@ func (s *TeamService) GetMyTeam(ctx context.Context, userID int) (*TeamResponse,
 	}, nil
 }
 
-func (s *TeamService) UpdateTeam(ctx context.Context, userID int, name, country *string) error {
+func (s *teamService) UpdateTeam(ctx context.Context, userID int, name, country *string) error {
 	team, err := s.teamRepo.GetByUserID(ctx, s.db, userID)
 	if err != nil {
 		return err
@@ -65,7 +71,7 @@ func (s *TeamService) UpdateTeam(ctx context.Context, userID int, name, country 
 	return s.teamRepo.UpdateDetails(ctx, s.db, team.ID, team.Name, team.Country)
 }
 
-func (s *TeamService) UpdatePlayer(ctx context.Context, userID, playerID int, first, last, country *string) error {
+func (s *teamService) UpdatePlayer(ctx context.Context, userID, playerID int, first, last, country *string) error {
 	player, err := s.playerRepo.GetByID(ctx, s.db, playerID)
 	if err != nil {
 		return api.ErrNotFound(locales.T(ctx, "player_not_found"))
