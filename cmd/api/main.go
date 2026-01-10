@@ -68,10 +68,12 @@ func main() {
 	//service
 	authSvc := service.NewAuthService(dbPool, userRepo, teamRepo, playerRepo, sessionRepo)
 	teamSvc := service.NewTeamService(dbPool, teamRepo, playerRepo)
+	transferSvc := service.NewTransferService(dbPool, playerRepo, teamRepo)
 
 	//handler
 	authHandler := handler.NewAuthHandler(authSvc)
 	teamHandler := handler.NewTeamHandler(teamSvc)
+	transferHandler := handler.NewTransferHandler(transferSvc)
 
 	//middleware
 	authMiddleware := middleware.Auth(sessionRepo)
@@ -88,6 +90,10 @@ func main() {
 
 	//team
 	mux.Handle("GET /team", authMiddleware(api.Make(teamHandler.GetMyTeam)))
+	mux.Handle("POST /transfer/list", authMiddleware(api.Make(transferHandler.ListPlayer)))
+	mux.Handle("POST /transfer/remove", authMiddleware(api.Make(transferHandler.RemovePlayer)))
+	mux.Handle("GET /transfer/market", authMiddleware(api.Make(transferHandler.GetMarket)))
+	mux.Handle("POST /transfer/buy", authMiddleware(api.Make(transferHandler.BuyPlayer)))
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,

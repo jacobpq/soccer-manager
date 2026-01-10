@@ -9,5 +9,16 @@
     "invalid_credentials": "Invalid credentials",
     "invalid_email": "Invalid email format",
     "password_short": "Password must be at least 6 characters",
-    "user_created": "User created successfully"
+    "user_created": "User created successfully",
+    "team_not_found": "Team not found",
+    "player_not_found": "Player not found",
+    "insufficient_funds": "Insufficient funds",
+    "own_player_buy": "Cannot buy your own player",
+    "player_not_sale": "Player is not for sale",
+    "market_fetch_fail": "Failed to fetch market",
+    "player_listed": "Player listed successfully",
+    "transfer_success": "Transfer successful",
+    "do_not_own_player": "You do not own this player",
+    "player_not_for_sale": "Player is not for sale",
+    "player_removed_from_list": "Player removed from list successfully"
 }
