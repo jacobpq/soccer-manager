@@ -5,8 +5,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_DSN=postgres://postgres:secret@postgres:5432/soccer_manager?sslmode=disable
+      - DATABASE_URL=postgres://postgres:secret@postgres:5432/soccer_manager?sslmode=disable
       - PORT=8080
+      - JWT_SECRET=secret
     depends_on:
       postgres:
         condition: service_healthy

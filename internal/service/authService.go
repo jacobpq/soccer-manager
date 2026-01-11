@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/jacobpq/soccer-manager/internal/api"
+	"github.com/jacobpq/soccer-manager/internal/config"
 	"github.com/jacobpq/soccer-manager/internal/domain/models"
 	"github.com/jacobpq/soccer-manager/internal/locales"
 	"github.com/jacobpq/soccer-manager/internal/repository"
@@ -28,15 +29,17 @@ type authService struct {
 	teamRepo    *repository.TeamRepository
 	playerRepo  *repository.PlayerRepository
 	sessionRepo *repository.SessionRepository
+	jwtSecret   []byte
 }
 
-func NewAuthService(db *pgxpool.Pool, u *repository.UserRepository, t *repository.TeamRepository, p *repository.PlayerRepository, s *repository.SessionRepository) AuthService {
+func NewAuthService(db *pgxpool.Pool, u *repository.UserRepository, t *repository.TeamRepository, p *repository.PlayerRepository, s *repository.SessionRepository, cfg *config.Config) AuthService {
 	return &authService{
 		db:          db,
 		userRepo:    u,
 		teamRepo:    t,
 		playerRepo:  p,
 		sessionRepo: s,
+		jwtSecret:   []byte(cfg.JWTSecret),
 	}
 }
 
@@ -75,6 +78,64 @@ func (s *authService) Register(ctx context.Context, req models.RegisterRequest) 
 	return tx.Commit(ctx)
 }
 
+func (s *authService) generateJWT(userID int, tokenType string, duration time.Duration) (string, error) {
+	claims := models.AuthClaims{
+		UserID:    userID,
+		TokenType: tokenType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(duration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.jwtSecret)
+}
+
+func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*models.Session, error) {
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, api.ErrUnauthorized(locales.T(ctx, "invalid_credentials"))
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if err != nil {
+		return nil, api.ErrUnauthorized(locales.T(ctx, "invalid_credentials"))
+	}
+
+	accessToken, _ := s.generateJWT(user.ID, "access", 30*time.Minute)
+
+	refreshToken, _ := s.generateJWT(user.ID, "refresh", 7*24*time.Hour)
+
+	session := &models.Session{
+		UserID:           user.ID,
+		AccessToken:      accessToken,
+		RefreshToken:     refreshToken,
+		AccessExpiresAt:  time.Now().Add(15 * time.Minute),
+		RefreshExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+	}
+
+	if err := s.sessionRepo.Create(ctx, session); err != nil {
+		return nil, err
+	}
+
+	return session, nil
+}
+
+func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
+	session, err := s.sessionRepo.GetByRefreshToken(ctx, refreshToken)
+	if err != nil {
+		return "", api.ErrUnauthorized(locales.T(ctx, "invalid_token"))
+	}
+
+	newAccessToken, err := s.generateJWT(session.UserID, "access", 30*time.Minute)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token: %w", err)
+	}
+
+	return newAccessToken, nil
+}
+
 func (s *authService) generateInitialSquad(teamID int) []*models.Player {
 	var players []*models.Player
 
@@ -105,55 +166,4 @@ func (s *authService) generateInitialSquad(teamID int) []*models.Player {
 		})
 	}
 	return players
-}
-
-func generateToken() string {
-	b := make([]byte, 32)
-	rand.Read(b)
-	return hex.EncodeToString(b)
-}
-
-func (s *authService) Login(ctx context.Context, req models.LoginRequest) (*models.Session, error) {
-	user, err := s.userRepo.GetByEmail(ctx, req.Email)
-	if err != nil {
-		return nil, api.ErrNotFound(locales.T(ctx, "invalid_credentials"))
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if err != nil {
-		return nil, api.ErrNotFound(locales.T(ctx, "invalid_credentials"))
-	}
-
-	accessToken := generateToken()
-	refreshToken := generateToken()
-
-	session := &models.Session{
-		UserID:           user.ID,
-		AccessToken:      accessToken,
-		RefreshToken:     refreshToken,
-		AccessExpiresAt:  time.Now().Add(60 * time.Minute),
-		RefreshExpiresAt: time.Now().Add(7 * 24 * time.Hour),
-	}
-
-	if err := s.sessionRepo.Create(ctx, session); err != nil {
-		return nil, err
-	}
-
-	return session, nil
-}
-
-func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (string, error) {
-	session, err := s.sessionRepo.GetByRefreshToken(ctx, refreshToken)
-	if err != nil {
-		return "", api.ErrNotFound(locales.T(ctx, "invalid_token"))
-	}
-
-	newAccessToken := generateToken()
-	newExpiry := time.Now().Add(15 * time.Minute)
-
-	if err := s.sessionRepo.RotateAccessToken(ctx, session.ID, newAccessToken, newExpiry); err != nil {
-		return "", err
-	}
-
-	return newAccessToken, nil
 }

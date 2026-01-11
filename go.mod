@@ -3,6 +3,7 @@ module github.com/jacobpq/soccer-manager
 go 1.25.5
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/jackc/pgx/v5 v5.8.0
 	go.uber.org/mock v0.6.0
 )

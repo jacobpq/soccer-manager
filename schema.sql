@@ -3,13 +3,13 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL
 );
+DROP TABLE IF EXISTS sessions;
 CREATE TABLE sessions (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    access_token VARCHAR(255) UNIQUE NOT NULL,
     refresh_token VARCHAR(255) UNIQUE NOT NULL,
-    access_expires_at TIMESTAMP NOT NULL,
-    refresh_expires_at TIMESTAMP NOT NULL
+    refresh_expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE teams (
     id SERIAL PRIMARY KEY,

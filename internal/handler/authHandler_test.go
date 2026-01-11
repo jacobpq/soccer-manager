@@ -33,7 +33,10 @@ func TestAuthHandler_Login(t *testing.T) {
 			mockBehavior: func(m *mocks.MockAuthService) {
 				m.EXPECT().
 					Login(gomock.Any(), models.LoginRequest{Email: "test@test.com", Password: "password123"}).
-					Return(&models.Session{AccessToken: "access-123"}, nil)
+					Return(&models.Session{
+						AccessToken:  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.signature",
+						RefreshToken: "random-opaque-string",
+					}, nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedBody:   "access-123",

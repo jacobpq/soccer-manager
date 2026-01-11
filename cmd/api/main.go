@@ -66,7 +66,7 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(dbPool)
 
 	//service
-	authSvc := service.NewAuthService(dbPool, userRepo, teamRepo, playerRepo, sessionRepo)
+	authSvc := service.NewAuthService(dbPool, userRepo, teamRepo, playerRepo, sessionRepo, cfg)
 	teamSvc := service.NewTeamService(dbPool, teamRepo, playerRepo)
 	transferSvc := service.NewTransferService(dbPool, playerRepo, teamRepo)
 
@@ -76,8 +76,9 @@ func main() {
 	transferHandler := handler.NewTransferHandler(transferSvc)
 
 	//middleware
-	authMiddleware := middleware.Auth(sessionRepo)
+	authMiddleware := middleware.Auth(cfg)
 
+	//router
 	mux := http.NewServeMux()
 
 	//util
